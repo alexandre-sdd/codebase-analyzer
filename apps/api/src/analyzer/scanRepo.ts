@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import type { Dirent } from "node:fs";
 
 export type ManifestInfo = {
   path: string;
@@ -43,6 +44,7 @@ const DEFAULT_IGNORED_DIRS = new Set([
   "target",
   ".idea",
   ".vscode",
+  ".jobs",
 ]);
 
 const EXT_TO_LANG: Record<string, string> = {
@@ -107,6 +109,7 @@ const KNOWN_MANIFESTS = [
 export type ScanRepoOptions = {
   maxFiles: number;
   maxBytesPerFile: number;
+  onProgress?: (info: { filesScanned: number; currentPath: string }) => void | Promise<void>;
 };
 
 type LangAgg = { files: number; bytes: number };
@@ -135,7 +138,7 @@ export async function scanRepo(repoPath: string, opts: ScanRepoOptions): Promise
   const stack: string[] = [repoPath];
   while (stack.length) {
     const dir = stack.pop()!;
-    let entries: fs.Dirent[];
+    let entries: Dirent[];
     try {
       entries = await fs.readdir(dir, { withFileTypes: true });
     } catch {
@@ -166,6 +169,13 @@ export async function scanRepo(repoPath: string, opts: ScanRepoOptions): Promise
       const size = stat.size;
       totalBytes += size;
       files.push({ relativePath: rel, bytes: size });
+
+      if (opts.onProgress && (files.length === 1 || files.length % 10 === 0)) {
+        await opts.onProgress({
+          filesScanned: files.length,
+          currentPath: rel,
+        });
+      }
 
       const lang = langForFile(full);
       langAgg[lang] ??= { files: 0, bytes: 0 };
@@ -201,4 +211,3 @@ export async function scanRepo(repoPath: string, opts: ScanRepoOptions): Promise
     files,
   };
 }
-

@@ -1,0 +1,126 @@
+{
+  "repo": {
+    "path": "/Users/alexandresepulvedadedietrich/codebase-analyzer/apps/.jobs/A0phIRisf2GaBy7CZHJyZ/checkout",
+    "sourceLabel": "https://github.com/Sripadkarne/Resume-Readiness-Intelligence-Engine",
+    "scannedAt": "2026-02-14T19:16:48.562Z"
+  },
+  "stats": {
+    "totalFiles": 52,
+    "totalBytes": 90708983,
+    "languages": [
+      {
+        "name": "SQLITE3",
+        "files": 1,
+        "bytes": 71024640
+      },
+      {
+        "name": "BIN",
+        "files": 4,
+        "bytes": 18664776
+      },
+      {
+        "name": "PICKLE",
+        "files": 1,
+        "bytes": 586696
+      },
+      {
+        "name": "PDF",
+        "files": 1,
+        "bytes": 154162
+      },
+      {
+        "name": "Markdown",
+        "files": 9,
+        "bytes": 123959
+      },
+      {
+        "name": "Python",
+        "files": 16,
+        "bytes": 46080
+      },
+      {
+        "name": "IPYNB",
+        "files": 3,
+        "bytes": 42041
+      },
+      {
+        "name": "XML",
+        "files": 9,
+        "bytes": 34152
+      },
+      {
+        "name": "HTML",
+        "files": 1,
+        "bytes": 19661
+      },
+      {
+        "name": "TXT",
+        "files": 4,
+        "bytes": 11195
+      },
+      {
+        "name": "Unknown",
+        "files": 2,
+        "bytes": 1228
+      },
+      {
+        "name": "Shell",
+        "files": 1,
+        "bytes": 393
+      }
+    ],
+    "topLevelDirs": [
+      "backend",
+      "demo",
+      "docs",
+      "frontend",
+      "notebooks",
+      "scripts",
+      "VectorDB"
+    ],
+    "manifests": [
+      "requirements.txt"
+    ]
+  },
+  "graph": {
+    "modules": [
+      {
+        "id": "backend",
+        "label": "backend"
+      }
+    ],
+    "edges": []
+  },
+  "git": {
+    "isRepo": true,
+    "head": {
+      "sha": "51feebfcc014c029aa9dd17fadc866e97e4d5798",
+      "author": "Alexandre SEPULVEDA de DIETRICH",
+      "date": "2026-01-25T13:56:14-05:00",
+      "message": "Merge pull request #25 from Sripadkarne/alexandre-sdd-patch-1"
+    },
+    "topAuthors": [
+      {
+        "name": "Alexandre SEPULVEDA de DIETRICH",
+        "commits": 1,
+        "emails": [
+          "152513095+alexandre-sdd@users.noreply.github.com"
+        ]
+      }
+    ]
+  },
+  "hypotheses": [
+    {
+      "title": "Python Runtime",
+      "hypothesis": "Python is likely part of the system (service, scripts, or tooling).",
+      "evidence": [
+        "Python files detected"
+      ],
+      "confidence": "medium"
+    }
+  ],
+  "notes": [
+    "This is a best-effort static crawl. Enable LLM enrichment for better naming and explanations.",
+    "Import parsing is heuristic and will miss dynamic/module-alias imports."
+  ]
+}

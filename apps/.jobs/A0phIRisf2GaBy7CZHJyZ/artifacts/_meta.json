@@ -1,0 +1,22 @@
+{
+  "analysis.json": {
+    "name": "analysis.json",
+    "contentType": "application/json; charset=utf-8"
+  },
+  "diagram.excalidraw.json": {
+    "name": "diagram.excalidraw.json",
+    "contentType": "application/json; charset=utf-8"
+  },
+  "podcast.md": {
+    "name": "podcast.md",
+    "contentType": "text/markdown; charset=utf-8"
+  },
+  "tasks.json": {
+    "name": "tasks.json",
+    "contentType": "application/json; charset=utf-8"
+  },
+  "structure-report.md": {
+    "name": "structure-report.md",
+    "contentType": "text/markdown; charset=utf-8"
+  }
+}

@@ -4,15 +4,32 @@ import { nanoid } from "nanoid";
 import { ensureDir, pathExists } from "../lib/fsUtil";
 
 export type JobStatus = "queued" | "running" | "done" | "error";
+export type JobSourceType = "local" | "github";
 
 export type Job = {
   jobId: string;
   status: JobStatus;
-  repoPath: string;
+  progressPct: number;
+  progressStage: string;
+  sourceType: JobSourceType;
+  repoPath?: string;
+  repoUrl?: string;
+  repoRef?: string;
   createdAt: string;
   updatedAt: string;
   error?: string;
 };
+
+export type CreateJobInput =
+  | {
+      sourceType: "local";
+      repoPath: string;
+    }
+  | {
+      sourceType: "github";
+      repoUrl: string;
+      repoRef?: string;
+    };
 
 export type ArtifactMeta = {
   name: string;
@@ -31,18 +48,33 @@ function jobJsonPath(jobsDir: string, jobId: string): string {
   return path.join(jobDir(jobsDir, jobId), "job.json");
 }
 
-export async function createJob(jobsDir: string, repoPath: string): Promise<Job> {
+export async function createJob(jobsDir: string, input: CreateJobInput): Promise<Job> {
   const jobId = nanoid();
   const now = new Date().toISOString();
 
   await ensureDir(artifactsDir(jobsDir, jobId));
-  const job: Job = {
+  const base: Omit<Job, "sourceType"> = {
     jobId,
     status: "queued",
-    repoPath,
+    progressPct: 0,
+    progressStage: "Queued",
     createdAt: now,
     updatedAt: now,
   };
+  const job: Job =
+    input.sourceType === "local"
+      ? {
+          ...base,
+          sourceType: "local",
+          repoPath: input.repoPath,
+        }
+      : {
+          ...base,
+          sourceType: "github",
+          repoUrl: input.repoUrl,
+          repoRef: input.repoRef,
+        };
+
   await fs.writeFile(jobJsonPath(jobsDir, jobId), JSON.stringify(job, null, 2), "utf8");
   return job;
 }
@@ -114,4 +146,3 @@ export async function readArtifact(
   const content = await fs.readFile(p);
   return { contentType: entry.contentType, content };
 }
-

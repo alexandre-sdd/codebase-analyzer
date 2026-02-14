@@ -21,6 +21,7 @@ export type ModuleGraph = {
 export type BuildGraphOptions = {
   maxFilesToScan: number;
   maxBytesPerFile: number;
+  onProgress?: (info: { scanned: number; total: number; currentPath: string }) => void | Promise<void>;
 };
 
 const CODE_EXTS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py"]);
@@ -77,7 +78,16 @@ export async function buildModuleGraph(snapshot: RepoSnapshot, opts: BuildGraphO
     .sort((a, b) => b.bytes - a.bytes)
     .slice(0, opts.maxFilesToScan);
 
-  for (const file of candidates) {
+  for (let index = 0; index < candidates.length; index += 1) {
+    const file = candidates[index];
+    if (opts.onProgress && (index === 0 || index % 8 === 0 || index + 1 === candidates.length)) {
+      await opts.onProgress({
+        scanned: index + 1,
+        total: candidates.length,
+        currentPath: file.relativePath,
+      });
+    }
+
     const abs = path.join(snapshot.repoPath, file.relativePath);
     const fromModule = moduleKeyFromRelPath(file.relativePath);
     nodes.set(fromModule, { id: fromModule, label: fromModule });
@@ -117,4 +127,3 @@ export async function buildModuleGraph(snapshot: RepoSnapshot, opts: BuildGraphO
 
   return { modules, edges };
 }
-

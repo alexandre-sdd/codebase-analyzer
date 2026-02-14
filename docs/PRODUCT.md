@@ -14,9 +14,10 @@ Newly onboarded engineers often receive a large codebase without enough context:
 
 ## Core Outputs (MVP)
 1. **Excalidraw diagram**: a coarse architecture map (modules + relationships)
-2. **Podcast-style explanation**: 4–6 minute high-level narrative (Markdown script)
-3. **Starter tasks**: 3 safe tasks that force “touching” the codebase
-4. **Who/why signals** (best-effort): git head + top authors; hypotheses with evidence
+2. **Long markdown structure report**: detailed repo breakdown suitable for onboarding docs
+3. **Podcast-style explanation**: 4–6 minute high-level narrative (Markdown script)
+4. **Starter tasks**: 3 safe tasks that force “touching” the codebase
+5. **Who/why signals** (best-effort): git head + top authors; hypotheses with evidence
 
 ## Non-Goals (MVP)
 - Perfect call graph / runtime tracing
@@ -24,8 +25,9 @@ Newly onboarded engineers often receive a large codebase without enough context:
 - Security-hardened multi-tenant SaaS
 
 ## Inputs
-- Local repo path (current implementation)
-- Next: upload a zip, or clone a git URL (needs auth + sandboxing)
+- Local repo path
+- GitHub URL (+ optional branch/tag ref)
+- Next: upload a zip, or clone private git URL with credentials management
 
 ## Future Enhancements
 - Render Excalidraw in-browser and allow edits + saving back
@@ -34,4 +36,3 @@ Newly onboarded engineers often receive a large codebase without enough context:
 - LLM “file picker” agent to focus on key entrypoints
 - WebSocket/SSE streaming progress logs
 - TTS: generate an actual audio file from the podcast script
-

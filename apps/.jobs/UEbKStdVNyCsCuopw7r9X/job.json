@@ -1,0 +1,10 @@
+{
+  "jobId": "UEbKStdVNyCsCuopw7r9X",
+  "status": "error",
+  "createdAt": "2026-02-14T19:15:43.821Z",
+  "updatedAt": "2026-02-14T19:15:49.679Z",
+  "sourceType": "github",
+  "repoUrl": "https://github.com/Sripadkarne/Resume-Readiness-Intelligence-Engine",
+  "repoPath": "/Users/alexandresepulvedadedietrich/codebase-analyzer/apps/.jobs/UEbKStdVNyCsCuopw7r9X/checkout",
+  "error": "mockClient cannot satisfy schema. system=You are a staff software engineer helpin"
+}
