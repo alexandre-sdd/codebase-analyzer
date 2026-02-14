@@ -109,6 +109,7 @@ const KNOWN_MANIFESTS = [
 export type ScanRepoOptions = {
   maxFiles: number;
   maxBytesPerFile: number;
+  onProgress?: (info: { filesScanned: number; currentPath: string }) => void | Promise<void>;
 };
 
 type LangAgg = { files: number; bytes: number };
@@ -168,6 +169,13 @@ export async function scanRepo(repoPath: string, opts: ScanRepoOptions): Promise
       const size = stat.size;
       totalBytes += size;
       files.push({ relativePath: rel, bytes: size });
+
+      if (opts.onProgress && (files.length === 1 || files.length % 10 === 0)) {
+        await opts.onProgress({
+          filesScanned: files.length,
+          currentPath: rel,
+        });
+      }
 
       const lang = langForFile(full);
       langAgg[lang] ??= { files: 0, bytes: 0 };

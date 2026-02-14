@@ -53,19 +53,52 @@ export async function analyzeRepository(
   env: Env,
   onProgress?: (pct: number, stage: string) => Promise<void>,
 ): Promise<AnalyzerResult> {
-  await onProgress?.(24, "Scanning repository files");
+  let lastScannedPath = "";
+  let lastImportPath = "";
+  let lastPct = 0;
+  let lastStage = "";
+  let lastAt = 0;
+  const emitProgress = async (pct: number, stage: string, force = false) => {
+    const boundedPct = Math.max(lastPct, Math.min(99, Math.round(pct)));
+    const safeStage = stage.length > 140 ? `...${stage.slice(-137)}` : stage;
+    const now = Date.now();
+    if (!force) {
+      const same = boundedPct === lastPct && safeStage === lastStage;
+      const tooSoon = now - lastAt < 280;
+      if (same || tooSoon) return;
+    }
+    lastPct = boundedPct;
+    lastStage = safeStage;
+    lastAt = now;
+    await onProgress?.(boundedPct, safeStage);
+  };
+
+  await emitProgress(24, "Scanning repository files", true);
   const snapshot = await scanRepo(input.repoPath, {
     maxFiles: env.MAX_FILES,
     maxBytesPerFile: env.MAX_BYTES_PER_FILE,
+    onProgress: async (info) => {
+      lastScannedPath = info.currentPath;
+      const pct = 24 + Math.min(14, Math.floor(info.filesScanned / 60));
+      await emitProgress(pct, `Scanning: ${shortenPath(info.currentPath)}`);
+    },
   });
 
-  await onProgress?.(38, "Building module map");
+  const scannedSuffix = lastScannedPath ? ` (last: ${shortenPath(lastScannedPath)})` : "";
+  await emitProgress(40, `Scanned ${snapshot.totalFiles.toLocaleString()} files${scannedSuffix}`, true);
   const graph = await buildModuleGraph(snapshot, {
     maxFilesToScan: env.MAX_IMPORT_SCAN_FILES,
     maxBytesPerFile: env.MAX_BYTES_PER_FILE,
+    onProgress: async (info) => {
+      lastImportPath = info.currentPath;
+      const ratio = info.total > 0 ? info.scanned / info.total : 1;
+      const pct = 42 + Math.round(ratio * 14);
+      await emitProgress(pct, `Analyzing imports: ${shortenPath(info.currentPath)}`);
+    },
   });
 
-  await onProgress?.(52, "Reading git ownership signals");
+  const importsSuffix = lastImportPath ? ` (last import: ${shortenPath(lastImportPath)})` : "";
+  await emitProgress(58, `Reading git ownership and commit history${importsSuffix}`, true);
   const gitSignals = await getGitSignals(input.repoPath);
 
   const analysis: AnalysisArtifact = {
@@ -93,7 +126,7 @@ export async function analyzeRepository(
     ],
   };
 
-  await onProgress?.(64, "Drafting detailed markdown report");
+  await emitProgress(68, "Drafting detailed markdown report", true);
   const localReport = generateStructureReportMarkdown({
     analysis,
     snapshot,
@@ -101,7 +134,12 @@ export async function analyzeRepository(
     sourceLabel: input.sourceLabel,
   });
 
-  await onProgress?.(78, "Enriching report with Claude");
+  const analyzedAreas =
+    snapshot.topLevelDirs.length > 0
+      ? snapshot.topLevelDirs.slice(0, 4).join(", ")
+      : "(repo root)";
+  const suffix = snapshot.topLevelDirs.length > 4 ? ", ..." : "";
+  await emitProgress(78, `Claude analyzing folders: ${analyzedAreas}${suffix}`, true);
   let structureReport = localReport;
   const llmClient = makeLlmClient(env);
   try {
@@ -141,10 +179,16 @@ export async function analyzeRepository(
     structureReport = localReport;
   }
 
-  await onProgress?.(92, "Finalizing markdown artifact");
+  await emitProgress(92, "Finalizing markdown artifact", true);
   return {
     structureReport,
   };
+}
+
+function shortenPath(relPath: string): string {
+  const max = 70;
+  if (relPath.length <= max) return relPath;
+  return `...${relPath.slice(-(max - 3))}`;
 }
 
 function makeHypotheses(

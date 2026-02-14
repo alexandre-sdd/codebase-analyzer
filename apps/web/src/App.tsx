@@ -80,6 +80,7 @@ export default function App() {
     if (!Number.isFinite(n)) return 0;
     return Math.max(0, Math.min(100, Math.round(n)));
   }, [job?.progressPct]);
+  const progressLabel = job?.progressStage ?? "Waiting";
 
   const statusPill = useMemo(() => {
     if (!job) return null;
@@ -121,7 +122,7 @@ export default function App() {
       setJob(next);
       while (next.status === "queued" || next.status === "running") {
         // eslint-disable-next-line no-await-in-loop
-        await new Promise((r) => setTimeout(r, 900));
+        await new Promise((r) => setTimeout(r, 450));
         // eslint-disable-next-line no-await-in-loop
         next = await getJob(jobId);
         setJob(next);
@@ -228,14 +229,22 @@ export default function App() {
                 </div>
                 <div className="kv">
                   <div className="k">Stage</div>
-                  <div className="v">{job.progressStage ?? "Waiting"}</div>
+                  <div className="v">{progressLabel}</div>
                 </div>
                 <div className="kv">
                   <div className="k">Progress</div>
                   <div className="v">{progressPct}%</div>
                 </div>
-                <div className="progress-track">
+                <div
+                  className="progress-track"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={progressPct}
+                  aria-label={progressLabel}
+                >
                   <div className="progress-fill" style={{ width: `${progressPct}%` }} />
+                  <div className="progress-text">{`${progressPct}% - ${progressLabel}`}</div>
                 </div>
                 <div className="kv">
                   <div className="k">Repo</div>
@@ -287,4 +296,3 @@ export default function App() {
     </div>
   );
 }
-
