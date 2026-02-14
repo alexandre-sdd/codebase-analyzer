@@ -1,5 +1,5 @@
-import cors from "@fastify/cors";
-import Fastify from "fastify";
+import express from "express";
+import cors from "cors";
 import { z } from "zod";
 import { loadEnv } from "./lib/env";
 import { registerHealthRoutes } from "./routes/health";
@@ -7,31 +7,33 @@ import { registerJobRoutes } from "./routes/jobs";
 
 const env = loadEnv(process.env);
 
-const server = Fastify({
-  logger: {
-    level: env.LOG_LEVEL,
-  },
-});
+const app = express();
 
-await server.register(cors, {
+// Middleware
+app.use(cors({
   origin: env.CORS_ORIGINS,
+}));
+app.use(express.json());
+
+// Routes
+app.get("/v1", (req, res) => {
+  res.json({
+    name: "codebase-analyzer-api",
+    ok: true,
+  });
 });
 
-registerHealthRoutes(server);
-registerJobRoutes(server, env);
+registerHealthRoutes(app);
+registerJobRoutes(app, env);
 
-server.get("/v1", async () => ({
-  name: "codebase-analyzer-api",
-  ok: true,
-}));
-
-server.setErrorHandler((err, _req, reply) => {
+// Error handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   const message = err instanceof Error ? err.message : String(err);
   const details = err instanceof z.ZodError ? err.flatten() : undefined;
-  const statusCode = typeof (err as any)?.statusCode === "number" ? (err as any).statusCode : 500;
+  const statusCode = typeof err?.statusCode === "number" ? err.statusCode : 500;
 
-  server.log.error({ err }, "request error");
-  void reply.status(statusCode).send({
+  console.error("Request error:", err);
+  res.status(statusCode).json({
     error: {
       message,
       details,
@@ -39,18 +41,20 @@ server.setErrorHandler((err, _req, reply) => {
   });
 });
 
-await server.listen({
-  host: env.HOST,
-  port: env.PORT,
+const server = app.listen(env.PORT, env.HOST, () => {
+  console.log(
+    `API listening on ${env.HOST}:${env.PORT}`,
+    {
+      jobsDir: env.JOBS_DIR,
+      llmProvider: env.LLM_PROVIDER,
+    }
+  );
 });
 
-server.log.info(
-  {
-    host: env.HOST,
-    port: env.PORT,
-    jobsDir: env.JOBS_DIR,
-    llmProvider: env.LLM_PROVIDER,
-  },
-  "api listening",
-);
-
+// Graceful shutdown
+process.on("SIGTERM", () => {
+  server.close(() => {
+    console.log("Server closed");
+    process.exit(0);
+  });
+});

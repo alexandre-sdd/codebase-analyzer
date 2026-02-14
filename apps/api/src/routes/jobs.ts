@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { FastifyInstance } from "fastify";
+import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import type { Env } from "../lib/env";
 import { ensureDir, isSubpath, pathExists } from "../lib/fsUtil";
@@ -25,52 +25,91 @@ const CreateJobBody = z
     }
   });
 
-export function registerJobRoutes(server: FastifyInstance, env: Env) {
-  server.post("/v1/jobs", async (req, reply) => {
-    const body = CreateJobBody.parse(req.body);
-    await ensureDir(env.JOBS_DIR);
-    const job =
-      body.repoPath && !body.repoUrl
-        ? await createLocalPathJob(env, body.repoPath)
-        : await createGithubUrlJob(env, body.repoUrl!, body.repoRef);
+export function registerJobRoutes(app: Express, env: Env) {
+  app.post("/v1/jobs", async (req: Request, res: Response) => {
+    try {
+      const body = CreateJobBody.parse(req.body);
+      await ensureDir(env.JOBS_DIR);
+      const job =
+        body.repoPath && !body.repoUrl
+          ? await createLocalPathJob(env, body.repoPath)
+          : await createGithubUrlJob(env, body.repoUrl!, body.repoRef);
 
-    // Fire-and-forget; job status is persisted to disk.
-    void runJob(job.jobId, env).catch((err) => {
-      server.log.error({ err, jobId: job.jobId }, "job runner crashed");
-    });
+      // Fire-and-forget; job status is persisted to disk.
+      void runJob(job.jobId, env).catch((err) => {
+        console.error({ err, jobId: job.jobId }, "job runner crashed");
+      });
 
-    return reply.status(201).send({ jobId: job.jobId });
+      res.status(201).json({ jobId: job.jobId });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        res.status(400).json({
+          error: {
+            message: "Invalid request body",
+            details: err.flatten(),
+          },
+        });
+      } else {
+        throw err;
+      }
+    }
   });
 
-  server.get("/v1/jobs/:jobId", async (req, reply) => {
-    const jobId = z
-      .string()
-      .regex(/^[a-zA-Z0-9_-]{8,64}$/)
-      .parse((req.params as any).jobId);
-    const job = await getJob(env.JOBS_DIR, jobId);
-    if (!job) {
-      return reply.status(404).send({ error: { message: "job not found" } });
-    }
+  app.get("/v1/jobs/:jobId", async (req: Request, res: Response) => {
+    try {
+      const jobId = z
+        .string()
+        .regex(/^[a-zA-Z0-9_-]{8,64}$/)
+        .parse(req.params.jobId);
+      const job = await getJob(env.JOBS_DIR, jobId);
+      if (!job) {
+        return res.status(404).json({ error: { message: "job not found" } });
+      }
 
-    const artifacts = await listArtifacts(env.JOBS_DIR, jobId);
-    return { ...job, artifacts };
+      const artifacts = await listArtifacts(env.JOBS_DIR, jobId);
+      res.json({ ...job, artifacts });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        res.status(400).json({
+          error: {
+            message: "Invalid jobId",
+            details: err.flatten(),
+          },
+        });
+      } else {
+        throw err;
+      }
+    }
   });
 
-  server.get("/v1/jobs/:jobId/artifacts/:name", async (req, reply) => {
-    const jobId = z
-      .string()
-      .regex(/^[a-zA-Z0-9_-]{8,64}$/)
-      .parse((req.params as any).jobId);
-    const name = z
-      .string()
-      .regex(/^[a-zA-Z0-9._-]{1,128}$/)
-      .parse((req.params as any).name);
-    const artifact = await readArtifact(env.JOBS_DIR, jobId, name);
-    if (!artifact) {
-      return reply.status(404).send({ error: { message: "artifact not found" } });
+  app.get("/v1/jobs/:jobId/artifacts/:name", async (req: Request, res: Response) => {
+    try {
+      const jobId = z
+        .string()
+        .regex(/^[a-zA-Z0-9_-]{8,64}$/)
+        .parse(req.params.jobId);
+      const name = z
+        .string()
+        .regex(/^[a-zA-Z0-9._-]{1,128}$/)
+        .parse(req.params.name);
+      const artifact = await readArtifact(env.JOBS_DIR, jobId, name);
+      if (!artifact) {
+        return res.status(404).json({ error: { message: "artifact not found" } });
+      }
+      res.setHeader("content-type", artifact.contentType);
+      res.send(artifact.content);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        res.status(400).json({
+          error: {
+            message: "Invalid parameters",
+            details: err.flatten(),
+          },
+        });
+      } else {
+        throw err;
+      }
     }
-    reply.header("content-type", artifact.contentType);
-    return reply.send(artifact.content);
   });
 }
 
@@ -80,17 +119,23 @@ async function createLocalPathJob(env: Env, repoPath: string) {
   if (env.ALLOWED_REPO_ROOT) {
     const allowedRoot = path.resolve(env.ALLOWED_REPO_ROOT);
     if (!isSubpath(absRepoPath, allowedRoot)) {
-      throw Object.assign(new Error("repoPath is outside ALLOWED_REPO_ROOT"), { statusCode: 403 });
+      const err: any = new Error("repoPath is outside ALLOWED_REPO_ROOT");
+      err.statusCode = 403;
+      throw err;
     }
   }
 
   if (!(await pathExists(absRepoPath))) {
-    throw Object.assign(new Error("repoPath does not exist"), { statusCode: 400 });
+    const err: any = new Error("repoPath does not exist");
+    err.statusCode = 400;
+    throw err;
   }
 
   const stat = await fs.stat(absRepoPath);
   if (!stat.isDirectory()) {
-    throw Object.assign(new Error("repoPath must be a directory"), { statusCode: 400 });
+    const err: any = new Error("repoPath must be a directory");
+    err.statusCode = 400;
+    throw err;
   }
 
   return createJob(env.JOBS_DIR, { sourceType: "local", repoPath: absRepoPath });
@@ -102,7 +147,9 @@ async function createGithubUrlJob(env: Env, repoUrl: string, repoRef?: string) {
     parsed = parseGitHubRepoUrl(repoUrl);
   } catch (err) {
     const message = err instanceof Error ? err.message : "invalid repoUrl";
-    throw Object.assign(new Error(message), { statusCode: 400 });
+    const error: any = new Error(message);
+    error.statusCode = 400;
+    throw error;
   }
   return createJob(env.JOBS_DIR, {
     sourceType: "github",

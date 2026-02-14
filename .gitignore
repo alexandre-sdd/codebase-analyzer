@@ -214,6 +214,10 @@ pnpm-debug.log*
 # Build outputs
 apps/api/dist/
 apps/web/dist/
+apps/web/.next/
+
+# Turbo
+.turbo/
 
 # Local jobs/artifacts
 apps/api/.jobs/

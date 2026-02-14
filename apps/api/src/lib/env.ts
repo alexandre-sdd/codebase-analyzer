@@ -24,7 +24,7 @@ export function loadEnv(raw: Record<string, string | undefined>): Env {
   const jobsDir = raw.JOBS_DIR ?? path.join(process.cwd(), "apps", "api", ".jobs");
   const corsOrigins = raw.CORS_ORIGINS
     ? raw.CORS_ORIGINS.split(",").map((s) => s.trim())
-    : ["http://localhost:5173"];
+    : ["http://localhost:3000", "http://localhost:5173"];
 
   const llmProvider = raw.LLM_PROVIDER ?? "anthropic";
   const anthropicApiKey = raw.ANTHROPIC_API_KEY ?? "";

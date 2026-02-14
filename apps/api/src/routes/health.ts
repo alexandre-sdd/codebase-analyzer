@@ -1,6 +1,7 @@
-import type { FastifyInstance } from "fastify";
+import type { Express } from "express";
 
-export function registerHealthRoutes(server: FastifyInstance) {
-  server.get("/v1/health", async () => ({ ok: true }));
+export function registerHealthRoutes(app: Express) {
+  app.get("/v1/health", (req, res) => {
+    res.json({ ok: true });
+  });
 }
-

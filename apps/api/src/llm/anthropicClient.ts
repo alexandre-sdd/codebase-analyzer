@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type { LlmClient, LlmTextRequest } from "./types";
 
@@ -8,34 +9,29 @@ type AnthropicClientOpts = {
   version: string;
 };
 
-// NOTE: Anthropic API details can change. This is intentionally small and easily swapped.
 export function makeAnthropicClient(opts: AnthropicClientOpts): LlmClient {
+  const client = new Anthropic({
+    apiKey: opts.apiKey,
+    baseURL: opts.baseUrl,
+  });
+
   return {
     async generateText(req: LlmTextRequest): Promise<string> {
-      const url = `${opts.baseUrl.replace(/\/$/, "")}/v1/messages`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": opts.apiKey,
-          "anthropic-version": opts.version,
-        },
-        body: JSON.stringify({
-          model: opts.model,
-          max_tokens: req.maxTokens,
-          system: req.system,
-          messages: [{ role: "user", content: req.prompt }],
-        }),
+      const message = await client.messages.create({
+        model: opts.model,
+        max_tokens: req.maxTokens,
+        system: req.system,
+        messages: [{ role: "user", content: req.prompt }],
       });
 
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Anthropic API error (${res.status}): ${text}`);
-      }
+      const text = message.content
+        .map((block) => {
+          if (block.type === "text") return block.text;
+          return "";
+        })
+        .join("\n")
+        .trim();
 
-      const data = (await res.json()) as any;
-      const parts: string[] = Array.isArray(data?.content) ? data.content.map((c: any) => c?.text).filter(Boolean) : [];
-      const text = parts.join("\n").trim();
       if (!text) throw new Error("Anthropic API returned empty content");
       return text;
     },
