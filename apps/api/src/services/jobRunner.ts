@@ -1,12 +1,27 @@
 import type { Env } from "../lib/env";
-import { updateJob, writeArtifact } from "./jobStore";
+import { getJob, updateJob, writeArtifact } from "./jobStore";
+import { resolveJobRepoPath } from "./repoSource";
 import { analyzeRepository } from "./repoAnalyzer";
 
 export async function runJob(jobId: string, env: Env): Promise<void> {
   await updateJob(env.JOBS_DIR, jobId, { status: "running", error: undefined });
 
   try {
-    const result = await analyzeRepository(jobId, env);
+    const job = await getJob(env.JOBS_DIR, jobId);
+    if (!job) throw new Error("job not found");
+
+    const source = await resolveJobRepoPath(env.JOBS_DIR, job, env);
+    await updateJob(env.JOBS_DIR, jobId, {
+      repoPath: source.repoPath,
+    });
+
+    const result = await analyzeRepository(
+      {
+        repoPath: source.repoPath,
+        sourceLabel: source.sourceLabel,
+      },
+      env,
+    );
 
     await writeArtifact(
       env.JOBS_DIR,
@@ -30,6 +45,13 @@ export async function runJob(jobId: string, env: Env): Promise<void> {
       "application/json; charset=utf-8",
       JSON.stringify(result.tasks, null, 2),
     );
+    await writeArtifact(
+      env.JOBS_DIR,
+      jobId,
+      "structure-report.md",
+      "text/markdown; charset=utf-8",
+      result.structureReport,
+    );
 
     await updateJob(env.JOBS_DIR, jobId, { status: "done" });
   } catch (err) {
@@ -37,4 +59,3 @@ export async function runJob(jobId: string, env: Env): Promise<void> {
     await updateJob(env.JOBS_DIR, jobId, { status: "error", error: message });
   }
 }
-

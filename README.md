@@ -2,6 +2,7 @@
 
 Goal: help a newly onboarded engineer understand an unfamiliar codebase by generating:
 - An Excalidraw architecture diagram (JSON)
+- A long markdown structure report
 - A short "podcast-style" high-level explanation (Markdown for now; TTS can be added later)
 - A small, concrete starter task list
 - Basic "who/why" signals from git history (best-effort)
@@ -31,7 +32,9 @@ npm run dev:api
 npm run dev:web
 ```
 
-Open the UI at the URL Vite prints (usually `http://localhost:5173`).
+Open the UI at the URL Vite prints (usually `http://localhost:5173`), then provide either:
+- a local `repoPath`
+- or a GitHub `repoUrl` on `github.com` (optional `repoRef` branch/tag)
 
 If your API isn't on `http://localhost:8787`, set `VITE_API_BASE` for the web app (example):
 
@@ -39,12 +42,31 @@ If your API isn't on `http://localhost:8787`, set `VITE_API_BASE` for the web ap
 VITE_API_BASE=http://localhost:8787 npm run dev:web
 ```
 
-## Claude agents (optional)
+## Claude Agents (Required)
 
-The backend can optionally call an LLM provider for richer explanations and better diagrams.
+The backend is wired to Anthropic Claude only.
 
-Set either:
-- `LLM_PROVIDER=mock` (default, deterministic local output)
-- `LLM_PROVIDER=anthropic` and `ANTHROPIC_API_KEY=...`
+Required env:
+- `LLM_PROVIDER=anthropic`
+- `ANTHROPIC_API_KEY=...`
 
-See `apps/api/src/llm/anthropicClient.ts` for details and knobs.
+Optional knobs:
+- `ANTHROPIC_MODEL` (example: `claude-sonnet-4-5-20250929`)
+- `ANTHROPIC_BASE_URL`
+- `ANTHROPIC_VERSION`
+
+See `apps/api/src/llm/anthropicClient.ts` for details.
+
+## API input (create job)
+
+`POST /v1/jobs` accepts exactly one source:
+
+```json
+{ "repoPath": "/absolute/path/to/repo" }
+```
+
+or
+
+```json
+{ "repoUrl": "https://github.com/owner/repo", "repoRef": "main" }
+```

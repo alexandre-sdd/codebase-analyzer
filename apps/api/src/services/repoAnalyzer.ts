@@ -1,16 +1,17 @@
 import type { Env } from "../lib/env";
-import { getJob } from "./jobStore";
 import { scanRepo } from "../analyzer/scanRepo";
 import { buildModuleGraph } from "../analyzer/moduleGraph";
 import { generateExcalidraw } from "../analyzer/excalidraw";
 import { generatePodcastFallback, generateTasksFallback } from "../analyzer/onboarding";
 import { getGitSignals } from "../analyzer/gitSignals";
+import { generateStructureReportMarkdown } from "../analyzer/structureReport";
 import { makeLlmClient } from "../llm/clientFactory";
 import { enrichWithLlm } from "../llm/enrichmentPipeline";
 
 export type AnalysisArtifact = {
   repo: {
     path: string;
+    sourceLabel: string;
     scannedAt: string;
   };
   stats: {
@@ -51,13 +52,14 @@ export type AnalyzerResult = {
   diagram: any;
   podcast: string;
   tasks: TaskSuggestion[];
+  structureReport: string;
 };
 
-export async function analyzeRepository(jobId: string, env: Env): Promise<AnalyzerResult> {
-  const job = await getJob(env.JOBS_DIR, jobId);
-  if (!job) throw new Error("job not found");
-
-  const snapshot = await scanRepo(job.repoPath, {
+export async function analyzeRepository(
+  input: { repoPath: string; sourceLabel: string },
+  env: Env,
+): Promise<AnalyzerResult> {
+  const snapshot = await scanRepo(input.repoPath, {
     maxFiles: env.MAX_FILES,
     maxBytesPerFile: env.MAX_BYTES_PER_FILE,
   });
@@ -67,11 +69,12 @@ export async function analyzeRepository(jobId: string, env: Env): Promise<Analyz
     maxBytesPerFile: env.MAX_BYTES_PER_FILE,
   });
 
-  const gitSignals = await getGitSignals(job.repoPath);
+  const gitSignals = await getGitSignals(input.repoPath);
 
   const analysis: AnalysisArtifact = {
     repo: {
-      path: job.repoPath,
+      path: input.repoPath,
+      sourceLabel: input.sourceLabel,
       scannedAt: new Date().toISOString(),
     },
     stats: {
@@ -105,17 +108,14 @@ export async function analyzeRepository(jobId: string, env: Env): Promise<Analyz
 
   const podcastFallback = generatePodcastFallback(analysis);
   const tasksFallback = generateTasksFallback(analysis);
+  const structureReport = generateStructureReportMarkdown({
+    analysis,
+    snapshot,
+    graph,
+    sourceLabel: input.sourceLabel,
+  });
 
   const llmClient = makeLlmClient(env);
-  if (!llmClient) {
-    return {
-      analysis,
-      diagram: baseDiagram,
-      podcast: podcastFallback,
-      tasks: tasksFallback,
-    };
-  }
-
   const enriched = await enrichWithLlm(llmClient, analysis, {
     baseDiagram,
     podcastFallback,
@@ -127,6 +127,7 @@ export async function analyzeRepository(jobId: string, env: Env): Promise<Analyz
     diagram: enriched.diagram,
     podcast: enriched.podcast,
     tasks: enriched.tasks,
+    structureReport,
   };
 }
 

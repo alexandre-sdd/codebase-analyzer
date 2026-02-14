@@ -54,69 +54,95 @@ export async function enrichWithLlm(
   const context = JSON.stringify(analysis, null, 2);
 
   // 1) Podcast script
-  const podcast = await llm.generateText({
-    system,
-    maxTokens: 900,
-    prompt: [
-      "Write a 4-6 minute podcast-style onboarding script explaining this codebase at a high level.",
-      "Style: 2 hosts (A and B), concise, technical, no fluff.",
-      "Include: what the system likely does, module boundaries, data flow, what to read first, and 1 warning about common pitfalls.",
-      "",
-      "CONTEXT:",
-      context,
-    ].join("\n"),
-  });
+  let podcast = inputs.podcastFallback;
+  try {
+    const generated = await llm.generateText({
+      system,
+      maxTokens: 900,
+      prompt: [
+        "Write a 4-6 minute podcast-style onboarding script explaining this codebase at a high level.",
+        "Style: 2 hosts (A and B), concise, technical, no fluff.",
+        "Include: what the system likely does, module boundaries, data flow, what to read first, and 1 warning about common pitfalls.",
+        "",
+        "CONTEXT:",
+        context,
+      ].join("\n"),
+    });
+    if (generated?.trim()) {
+      podcast = generated;
+    }
+  } catch {
+    // Keep fallback content if provider response is malformed or unavailable.
+  }
 
   // 2) Starter tasks
-  const tasks = await llm.generateJson(
-    {
-      system,
-      maxTokens: 700,
-      prompt: [
-        "Propose 3 starter tasks for a new engineer to get hands-on with this codebase.",
-        "Constraints:",
-        "- Each task must be safe (low blast radius) and shippable in <= 2 hours",
-        "- Include acceptance criteria and concrete hints",
-        "",
-        "Return JSON: an array of tasks.",
-        "",
-        "CONTEXT:",
-        context,
-      ].join("\n"),
-    },
-    z.array(TaskSchema).min(3).max(3),
-  );
+  let tasks = inputs.tasksFallback;
+  try {
+    const generatedTasks = await llm.generateJson(
+      {
+        system,
+        maxTokens: 700,
+        prompt: [
+          "Propose 3 starter tasks for a new engineer to get hands-on with this codebase.",
+          "Constraints:",
+          "- Each task must be safe (low blast radius) and shippable in <= 2 hours",
+          "- Include acceptance criteria and concrete hints",
+          "",
+          "Return JSON: an array of tasks.",
+          "",
+          "CONTEXT:",
+          context,
+        ].join("\n"),
+      },
+      z.array(TaskSchema).min(3).max(3),
+    );
+    if (generatedTasks?.length) {
+      tasks = generatedTasks;
+    }
+  } catch {
+    // Keep fallback tasks.
+  }
 
   // 3) Better diagram spec (then we render to Excalidraw ourselves)
-  const diagramSpec = await llm.generateJson(
-    {
-      system,
-      maxTokens: 700,
-      prompt: [
-        "Create a simplified architecture graph for an onboarding diagram.",
-        "Rules:",
-        "- 6 to 14 nodes",
-        "- Node labels should be human-friendly (not raw folder names) but grounded in evidence",
-        "- Edges represent major calls/dependencies",
-        "",
-        "Return JSON with shape: { title, nodes: [{id,label}], edges: [{from,to,weight}] }",
-        "",
-        "CONTEXT:",
-        context,
-      ].join("\n"),
-    },
-    EnrichedGraphSchema,
-  );
+  let diagram = inputs.baseDiagram;
+  try {
+    const diagramSpec = await llm.generateJson(
+      {
+        system,
+        maxTokens: 700,
+        prompt: [
+          "Create a simplified architecture graph for an onboarding diagram.",
+          "Rules:",
+          "- 6 to 14 nodes",
+          "- Node labels should be human-friendly (not raw folder names) but grounded in evidence",
+          "- Edges represent major calls/dependencies",
+          "",
+          "Return JSON with shape: { title, nodes: [{id,label}], edges: [{from,to,weight}] }",
+          "",
+          "CONTEXT:",
+          context,
+        ].join("\n"),
+      },
+      EnrichedGraphSchema,
+    );
 
-  const diagram = generateExcalidraw(
-    { modules: diagramSpec.nodes, edges: diagramSpec.edges },
-    { title: diagramSpec.title },
-  );
+    const normalizedEdges = diagramSpec.edges.map((edge) => ({
+      from: edge.from,
+      to: edge.to,
+      weight: edge.weight ?? 1,
+    }));
+
+    diagram = generateExcalidraw(
+      { modules: diagramSpec.nodes, edges: normalizedEdges },
+      { title: diagramSpec.title },
+    );
+  } catch {
+    // Keep base diagram.
+  }
 
   return {
-    diagram: diagram ?? inputs.baseDiagram,
-    podcast: podcast?.trim() ? podcast : inputs.podcastFallback,
-    tasks: tasks?.length ? tasks : inputs.tasksFallback,
+    diagram,
+    podcast,
+    tasks,
   };
 }
-

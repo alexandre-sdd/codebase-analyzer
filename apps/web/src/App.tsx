@@ -11,7 +11,10 @@ type JobResponse = {
   status: JobStatus;
   createdAt: string;
   updatedAt: string;
+  sourceType?: "local" | "github";
   repoPath?: string;
+  repoUrl?: string;
+  repoRef?: string;
   error?: string;
   artifacts?: {
     name: string;
@@ -21,11 +24,11 @@ type JobResponse = {
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8787";
 
-async function createJob(repoPath: string): Promise<CreateJobResponse> {
+async function createJob(input: { repoPath?: string; repoUrl?: string; repoRef?: string }): Promise<CreateJobResponse> {
   const res = await fetch(`${API_BASE}/v1/jobs`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ repoPath }),
+    body: JSON.stringify(input),
   });
   if (!res.ok) throw new Error(await res.text());
   return (await res.json()) as CreateJobResponse;
@@ -70,7 +73,7 @@ async function fetchArtifactJson<T>(jobId: string, name: string): Promise<T> {
 }
 
 type AnalysisJson = {
-  repo: { path: string; scannedAt: string };
+  repo: { path: string; sourceLabel: string; scannedAt: string };
   stats: {
     totalFiles: number;
     totalBytes: number;
@@ -100,12 +103,15 @@ type TaskJson = {
 
 export default function App() {
   const [repoPath, setRepoPath] = useState("");
+  const [repoUrl, setRepoUrl] = useState("");
+  const [repoRef, setRepoRef] = useState("");
   const [job, setJob] = useState<JobResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [podcast, setPodcast] = useState<string | null>(null);
   const [tasks, setTasks] = useState<TaskJson[] | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisJson | null>(null);
+  const [structureReport, setStructureReport] = useState<string | null>(null);
 
   const statusPill = useMemo(() => {
     if (!job) return null;
@@ -120,13 +126,31 @@ export default function App() {
   }, [job]);
 
   async function run() {
+    const trimmedPath = repoPath.trim();
+    const trimmedUrl = repoUrl.trim();
+    const trimmedRef = repoRef.trim();
+    const hasPath = Boolean(trimmedPath);
+    const hasUrl = Boolean(trimmedUrl);
+    if (hasPath === hasUrl) {
+      setError("Provide exactly one source: local repo path OR GitHub URL.");
+      return;
+    }
+
     setError(null);
     setBusy(true);
     setPodcast(null);
     setTasks(null);
     setAnalysis(null);
+    setStructureReport(null);
     try {
-      const { jobId } = await createJob(repoPath.trim());
+      const { jobId } = await createJob(
+        hasPath
+          ? { repoPath: trimmedPath }
+          : {
+              repoUrl: trimmedUrl,
+              repoRef: trimmedRef || undefined,
+            },
+      );
       let next = await getJob(jobId);
       setJob(next);
       while (next.status === "queued" || next.status === "running") {
@@ -138,14 +162,16 @@ export default function App() {
       }
 
       if (next.status === "done") {
-        const [p, t, a] = await Promise.all([
+        const [p, t, a, s] = await Promise.all([
           fetchArtifactText(next.jobId, "podcast.md"),
           fetchArtifactJson<TaskJson[]>(next.jobId, "tasks.json"),
           fetchArtifactJson<AnalysisJson>(next.jobId, "analysis.json"),
+          fetchArtifactText(next.jobId, "structure-report.md"),
         ]);
         setPodcast(p);
         setTasks(t);
         setAnalysis(a);
+        setStructureReport(s);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -163,14 +189,16 @@ export default function App() {
       setJob(next);
 
       if (next.status === "done") {
-        const [p, t, a] = await Promise.all([
+        const [p, t, a, s] = await Promise.all([
           fetchArtifactText(next.jobId, "podcast.md"),
           fetchArtifactJson<TaskJson[]>(next.jobId, "tasks.json"),
           fetchArtifactJson<AnalysisJson>(next.jobId, "analysis.json"),
+          fetchArtifactText(next.jobId, "structure-report.md"),
         ]);
         setPodcast(p);
         setTasks(t);
         setAnalysis(a);
+        setStructureReport(s);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -184,9 +212,9 @@ export default function App() {
       <div className="hero">
         <h1>Codebase Analyzer</h1>
         <p>
-          Point it at a repo path, get an Excalidraw diagram, a short high-level
-          explanation, and a first starter task list. Optional Claude agent
-          enrichment if configured.
+          Point it at a local repo path or a GitHub URL, then get a detailed
+          markdown structure report, Excalidraw diagram, high-level explanation,
+          and starter tasks. Optional Claude enrichment is available.
         </p>
       </div>
 
@@ -202,9 +230,28 @@ export default function App() {
                 onChange={(e) => setRepoPath(e.target.value)}
               />
             </label>
+            <label>
+              GitHub repo URL
+              <input
+                value={repoUrl}
+                placeholder="https://github.com/owner/repo"
+                onChange={(e) => setRepoUrl(e.target.value)}
+              />
+            </label>
+            <label>
+              Branch or tag (optional)
+              <input
+                value={repoRef}
+                placeholder="main"
+                onChange={(e) => setRepoRef(e.target.value)}
+              />
+            </label>
 
             <div className="btns">
-              <button onClick={run} disabled={busy || !repoPath.trim()}>
+              <button
+                onClick={run}
+                disabled={busy || (Boolean(repoPath.trim()) === Boolean(repoUrl.trim()))}
+              >
                 Analyze
               </button>
               <button className="secondary" onClick={refresh} disabled={busy || !job}>
@@ -233,6 +280,18 @@ export default function App() {
                   <div className="k">Repo</div>
                   <div className="v">{job.repoPath ?? "(n/a)"}</div>
                 </div>
+                {job.sourceType === "github" ? (
+                  <>
+                    <div className="kv">
+                      <div className="k">GitHub URL</div>
+                      <div className="v">{job.repoUrl ?? "(n/a)"}</div>
+                    </div>
+                    <div className="kv">
+                      <div className="k">Ref</div>
+                      <div className="v">{job.repoRef ?? "(default branch)"}</div>
+                    </div>
+                  </>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -282,6 +341,10 @@ export default function App() {
                   <div className="v">{new Date(analysis.repo.scannedAt).toLocaleString()}</div>
                 </div>
                 <div className="kv">
+                  <div className="k">Source</div>
+                  <div className="v">{analysis.repo.sourceLabel}</div>
+                </div>
+                <div className="kv">
                   <div className="k">Files</div>
                   <div className="v">{analysis.stats.totalFiles.toLocaleString()}</div>
                 </div>
@@ -310,6 +373,16 @@ export default function App() {
             {podcast ? <pre>{podcast}</pre> : <p style={{ margin: 0, color: "var(--muted)" }}>No podcast yet.</p>}
           </div>
         </div>
+      ) : null}
+
+      {structureReport ? (
+        <>
+          <div style={{ height: 14 }} />
+          <div className="card">
+            <h2>Structure Report</h2>
+            <pre>{structureReport}</pre>
+          </div>
+        </>
       ) : null}
 
       {tasks?.length ? (

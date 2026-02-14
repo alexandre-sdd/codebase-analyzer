@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import type { Dirent } from "node:fs";
 
 export type ManifestInfo = {
   path: string;
@@ -135,7 +136,7 @@ export async function scanRepo(repoPath: string, opts: ScanRepoOptions): Promise
   const stack: string[] = [repoPath];
   while (stack.length) {
     const dir = stack.pop()!;
-    let entries: fs.Dirent[];
+    let entries: Dirent[];
     try {
       entries = await fs.readdir(dir, { withFileTypes: true });
     } catch {
@@ -201,4 +202,3 @@ export async function scanRepo(repoPath: string, opts: ScanRepoOptions): Promise
     files,
   };
 }
-

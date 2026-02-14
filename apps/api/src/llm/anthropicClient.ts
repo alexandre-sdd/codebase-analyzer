@@ -12,7 +12,7 @@ type AnthropicClientOpts = {
 export function makeAnthropicClient(opts: AnthropicClientOpts): LlmClient {
   return {
     async generateText(req: LlmTextRequest): Promise<string> {
-      const url = `${opts.baseUrl.replace(/\\/$/, "")}/v1/messages`;
+      const url = `${opts.baseUrl.replace(/\/$/, "")}/v1/messages`;
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -44,13 +44,12 @@ export function makeAnthropicClient(opts: AnthropicClientOpts): LlmClient {
       const raw = await this.generateText(req);
       // Expect JSON-only; strip code fences if present.
       const cleaned = raw
-        .replace(/^```json\\s*/i, "")
-        .replace(/^```\\s*/i, "")
-        .replace(/```\\s*$/i, "")
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/```\s*$/i, "")
         .trim();
       const parsed = JSON.parse(cleaned);
       return schema.parse(parsed);
     },
   };
 }
-

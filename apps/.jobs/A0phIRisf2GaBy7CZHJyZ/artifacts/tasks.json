@@ -1,0 +1,42 @@
+[
+  {
+    "title": "Run the smallest happy-path locally",
+    "goal": "Prove you can execute the project once end-to-end on your machine.",
+    "timeboxMinutes": 30,
+    "acceptanceCriteria": [
+      "You can run one command that completes successfully",
+      "You document the exact command + any env vars needed"
+    ],
+    "hints": [
+      "Look for README, Makefile, package.json scripts, or docker-compose.",
+      "Manifests spotted: requirements.txt"
+    ]
+  },
+  {
+    "title": "Pick one module and write an internal map",
+    "goal": "Build a short mental model of one module boundary and how it talks to others.",
+    "timeboxMinutes": 45,
+    "acceptanceCriteria": [
+      "You can name the module’s responsibility in 1 sentence",
+      "You list 3 key files and 2 upstream/downstream modules"
+    ],
+    "hints": [
+      "Candidate modules: backend",
+      "Use the generated diagram as a starting point, but validate by reading code."
+    ]
+  },
+  {
+    "title": "Ship a tiny, safe improvement",
+    "goal": "Make a small change that improves maintainability without product risk.",
+    "timeboxMinutes": 60,
+    "acceptanceCriteria": [
+      "Change is scoped to one module",
+      "Change has a clear before/after behavior or clarity win",
+      "Change includes a short note explaining why"
+    ],
+    "hints": [
+      "Examples: improve error message, add a missing README snippet, add a guard clause, or add a small unit test.",
+      "If you have git history, find a file with frequent churn and improve clarity."
+    ]
+  }
+]
