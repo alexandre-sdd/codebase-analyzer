@@ -9,6 +9,8 @@ type CreateJobResponse = {
 type JobResponse = {
   jobId: string;
   status: JobStatus;
+  progressPct?: number;
+  progressStage?: string;
   createdAt: string;
   updatedAt: string;
   sourceType?: "local" | "github";
@@ -64,43 +66,6 @@ async function fetchArtifactText(jobId: string, name: string): Promise<string> {
   return await res.text();
 }
 
-async function fetchArtifactJson<T>(jobId: string, name: string): Promise<T> {
-  const res = await fetch(
-    `${API_BASE}/v1/jobs/${encodeURIComponent(jobId)}/artifacts/${encodeURIComponent(name)}`,
-  );
-  if (!res.ok) throw new Error(await res.text());
-  return (await res.json()) as T;
-}
-
-type AnalysisJson = {
-  repo: { path: string; sourceLabel: string; scannedAt: string };
-  stats: {
-    totalFiles: number;
-    totalBytes: number;
-    languages: { name: string; files: number; bytes: number }[];
-    topLevelDirs: string[];
-    manifests: string[];
-  };
-  graph: {
-    modules: { id: string; label: string }[];
-    edges: { from: string; to: string; weight: number }[];
-  };
-  git?: {
-    isRepo: boolean;
-    head?: { sha: string; message: string; author: string; date: string };
-    topAuthors?: { name: string; emails: string[]; commits: number }[];
-  };
-  notes: string[];
-};
-
-type TaskJson = {
-  title: string;
-  goal: string;
-  timeboxMinutes: number;
-  acceptanceCriteria: string[];
-  hints: string[];
-};
-
 export default function App() {
   const [repoPath, setRepoPath] = useState("");
   const [repoUrl, setRepoUrl] = useState("");
@@ -108,10 +73,13 @@ export default function App() {
   const [job, setJob] = useState<JobResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [podcast, setPodcast] = useState<string | null>(null);
-  const [tasks, setTasks] = useState<TaskJson[] | null>(null);
-  const [analysis, setAnalysis] = useState<AnalysisJson | null>(null);
   const [structureReport, setStructureReport] = useState<string | null>(null);
+
+  const progressPct = useMemo(() => {
+    const n = Number(job?.progressPct ?? 0);
+    if (!Number.isFinite(n)) return 0;
+    return Math.max(0, Math.min(100, Math.round(n)));
+  }, [job?.progressPct]);
 
   const statusPill = useMemo(() => {
     if (!job) return null;
@@ -138,9 +106,6 @@ export default function App() {
 
     setError(null);
     setBusy(true);
-    setPodcast(null);
-    setTasks(null);
-    setAnalysis(null);
     setStructureReport(null);
     try {
       const { jobId } = await createJob(
@@ -151,6 +116,7 @@ export default function App() {
               repoRef: trimmedRef || undefined,
             },
       );
+
       let next = await getJob(jobId);
       setJob(next);
       while (next.status === "queued" || next.status === "running") {
@@ -162,16 +128,8 @@ export default function App() {
       }
 
       if (next.status === "done") {
-        const [p, t, a, s] = await Promise.all([
-          fetchArtifactText(next.jobId, "podcast.md"),
-          fetchArtifactJson<TaskJson[]>(next.jobId, "tasks.json"),
-          fetchArtifactJson<AnalysisJson>(next.jobId, "analysis.json"),
-          fetchArtifactText(next.jobId, "structure-report.md"),
-        ]);
-        setPodcast(p);
-        setTasks(t);
-        setAnalysis(a);
-        setStructureReport(s);
+        const report = await fetchArtifactText(next.jobId, "structure-report.md");
+        setStructureReport(report);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -189,16 +147,8 @@ export default function App() {
       setJob(next);
 
       if (next.status === "done") {
-        const [p, t, a, s] = await Promise.all([
-          fetchArtifactText(next.jobId, "podcast.md"),
-          fetchArtifactJson<TaskJson[]>(next.jobId, "tasks.json"),
-          fetchArtifactJson<AnalysisJson>(next.jobId, "analysis.json"),
-          fetchArtifactText(next.jobId, "structure-report.md"),
-        ]);
-        setPodcast(p);
-        setTasks(t);
-        setAnalysis(a);
-        setStructureReport(s);
+        const report = await fetchArtifactText(next.jobId, "structure-report.md");
+        setStructureReport(report);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -212,9 +162,9 @@ export default function App() {
       <div className="hero">
         <h1>Codebase Analyzer</h1>
         <p>
-          Point it at a local repo path or a GitHub URL, then get a detailed
-          markdown structure report, Excalidraw diagram, high-level explanation,
-          and starter tasks. Optional Claude enrichment is available.
+          Analyze a local repo path or GitHub URL and get one output: a detailed
+          markdown report explaining code structure, technologies used, and likely
+          architecture boundaries.
         </p>
       </div>
 
@@ -277,21 +227,20 @@ export default function App() {
                   <div className="v">{statusPill}</div>
                 </div>
                 <div className="kv">
+                  <div className="k">Stage</div>
+                  <div className="v">{job.progressStage ?? "Waiting"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Progress</div>
+                  <div className="v">{progressPct}%</div>
+                </div>
+                <div className="progress-track">
+                  <div className="progress-fill" style={{ width: `${progressPct}%` }} />
+                </div>
+                <div className="kv">
                   <div className="k">Repo</div>
                   <div className="v">{job.repoPath ?? "(n/a)"}</div>
                 </div>
-                {job.sourceType === "github" ? (
-                  <>
-                    <div className="kv">
-                      <div className="k">GitHub URL</div>
-                      <div className="v">{job.repoUrl ?? "(n/a)"}</div>
-                    </div>
-                    <div className="kv">
-                      <div className="k">Ref</div>
-                      <div className="v">{job.repoRef ?? "(default branch)"}</div>
-                    </div>
-                  </>
-                ) : null}
               </div>
             ) : null}
           </div>
@@ -315,103 +264,27 @@ export default function App() {
                 ))}
               </div>
               <p style={{ margin: 0, color: "var(--muted)" }}>
-                Tip: open `diagram.excalidraw.json` in Excalidraw to view/edit.
+                Primary output is `structure-report.md`.
               </p>
             </div>
           ) : (
             <p style={{ margin: 0, color: "var(--muted)" }}>
-              Run an analysis to generate artifacts.
+              Run an analysis to generate the markdown report.
             </p>
           )}
         </div>
       </div>
 
-      {analysis ? (
-        <div style={{ height: 14 }} />
-      ) : null}
-
-      {analysis ? (
-        <div className="grid">
-          <div className="card">
-            <h2>Summary</h2>
-            <div className="row">
-              <div className="kvs">
-                <div className="kv">
-                  <div className="k">Scanned At</div>
-                  <div className="v">{new Date(analysis.repo.scannedAt).toLocaleString()}</div>
-                </div>
-                <div className="kv">
-                  <div className="k">Source</div>
-                  <div className="v">{analysis.repo.sourceLabel}</div>
-                </div>
-                <div className="kv">
-                  <div className="k">Files</div>
-                  <div className="v">{analysis.stats.totalFiles.toLocaleString()}</div>
-                </div>
-                <div className="kv">
-                  <div className="k">Modules</div>
-                  <div className="v">{analysis.graph.modules.length.toLocaleString()}</div>
-                </div>
-                <div className="kv">
-                  <div className="k">Edges</div>
-                  <div className="v">{analysis.graph.edges.length.toLocaleString()}</div>
-                </div>
-                {analysis.git?.isRepo && analysis.git.head ? (
-                  <div className="kv">
-                    <div className="k">Git Head</div>
-                    <div className="v">
-                      {analysis.git.head.sha.slice(0, 8)} {analysis.git.head.message}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </div>
-
-          <div className="card">
-            <h2>Podcast</h2>
-            {podcast ? <pre>{podcast}</pre> : <p style={{ margin: 0, color: "var(--muted)" }}>No podcast yet.</p>}
-          </div>
-        </div>
-      ) : null}
-
       {structureReport ? (
         <>
           <div style={{ height: 14 }} />
           <div className="card">
-            <h2>Structure Report</h2>
+            <h2>Detailed Markdown Report</h2>
             <pre>{structureReport}</pre>
-          </div>
-        </>
-      ) : null}
-
-      {tasks?.length ? (
-        <>
-          <div style={{ height: 14 }} />
-          <div className="card">
-            <h2>Starter Tasks</h2>
-            <div className="row">
-              {tasks.map((t) => (
-                <div className="kv" key={t.title}>
-                  <div className="k">{t.title}</div>
-                  <div className="v" style={{ color: "var(--muted)" }}>
-                    {t.goal} ({t.timeboxMinutes}m)
-                  </div>
-                  <pre>
-                    Acceptance:
-                    {"\n"}
-                    {t.acceptanceCriteria.map((c) => `- ${c}`).join("\n")}
-                    {"\n\n"}
-                    Hints:
-                    {"\n"}
-                    {t.hints.map((h) => `- ${h}`).join("\n")}
-                  </pre>
-                </div>
-              ))}
-            </div>
           </div>
         </>
       ) : null}
     </div>
   );
 }
+

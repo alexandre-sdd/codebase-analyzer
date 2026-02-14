@@ -9,6 +9,8 @@ export type JobSourceType = "local" | "github";
 export type Job = {
   jobId: string;
   status: JobStatus;
+  progressPct: number;
+  progressStage: string;
   sourceType: JobSourceType;
   repoPath?: string;
   repoUrl?: string;
@@ -54,6 +56,8 @@ export async function createJob(jobsDir: string, input: CreateJobInput): Promise
   const base: Omit<Job, "sourceType"> = {
     jobId,
     status: "queued",
+    progressPct: 0,
+    progressStage: "Queued",
     createdAt: now,
     updatedAt: now,
   };

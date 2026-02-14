@@ -4,15 +4,26 @@ import { resolveJobRepoPath } from "./repoSource";
 import { analyzeRepository } from "./repoAnalyzer";
 
 export async function runJob(jobId: string, env: Env): Promise<void> {
-  await updateJob(env.JOBS_DIR, jobId, { status: "running", error: undefined });
+  await updateJob(env.JOBS_DIR, jobId, {
+    status: "running",
+    error: undefined,
+    progressPct: 2,
+    progressStage: "Starting job",
+  });
 
   try {
     const job = await getJob(env.JOBS_DIR, jobId);
     if (!job) throw new Error("job not found");
 
+    await updateJob(env.JOBS_DIR, jobId, {
+      progressPct: 8,
+      progressStage: "Resolving repository source",
+    });
     const source = await resolveJobRepoPath(env.JOBS_DIR, job, env);
     await updateJob(env.JOBS_DIR, jobId, {
       repoPath: source.repoPath,
+      progressPct: 18,
+      progressStage: "Repository ready",
     });
 
     const result = await analyzeRepository(
@@ -21,30 +32,14 @@ export async function runJob(jobId: string, env: Env): Promise<void> {
         sourceLabel: source.sourceLabel,
       },
       env,
+      async (pct, stage) => {
+        await updateJob(env.JOBS_DIR, jobId, {
+          progressPct: pct,
+          progressStage: stage,
+        });
+      },
     );
 
-    await writeArtifact(
-      env.JOBS_DIR,
-      jobId,
-      "analysis.json",
-      "application/json; charset=utf-8",
-      JSON.stringify(result.analysis, null, 2),
-    );
-    await writeArtifact(
-      env.JOBS_DIR,
-      jobId,
-      "diagram.excalidraw.json",
-      "application/json; charset=utf-8",
-      JSON.stringify(result.diagram, null, 2),
-    );
-    await writeArtifact(env.JOBS_DIR, jobId, "podcast.md", "text/markdown; charset=utf-8", result.podcast);
-    await writeArtifact(
-      env.JOBS_DIR,
-      jobId,
-      "tasks.json",
-      "application/json; charset=utf-8",
-      JSON.stringify(result.tasks, null, 2),
-    );
     await writeArtifact(
       env.JOBS_DIR,
       jobId,
@@ -53,9 +48,17 @@ export async function runJob(jobId: string, env: Env): Promise<void> {
       result.structureReport,
     );
 
-    await updateJob(env.JOBS_DIR, jobId, { status: "done" });
+    await updateJob(env.JOBS_DIR, jobId, {
+      status: "done",
+      progressPct: 100,
+      progressStage: "Completed",
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await updateJob(env.JOBS_DIR, jobId, { status: "error", error: message });
+    await updateJob(env.JOBS_DIR, jobId, {
+      status: "error",
+      error: message,
+      progressStage: "Failed",
+    });
   }
 }

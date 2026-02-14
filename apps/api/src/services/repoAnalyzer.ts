@@ -1,12 +1,9 @@
 import type { Env } from "../lib/env";
 import { scanRepo } from "../analyzer/scanRepo";
 import { buildModuleGraph } from "../analyzer/moduleGraph";
-import { generateExcalidraw } from "../analyzer/excalidraw";
-import { generatePodcastFallback, generateTasksFallback } from "../analyzer/onboarding";
 import { getGitSignals } from "../analyzer/gitSignals";
 import { generateStructureReportMarkdown } from "../analyzer/structureReport";
 import { makeLlmClient } from "../llm/clientFactory";
-import { enrichWithLlm } from "../llm/enrichmentPipeline";
 
 export type AnalysisArtifact = {
   repo: {
@@ -48,27 +45,27 @@ export type TaskSuggestion = {
 };
 
 export type AnalyzerResult = {
-  analysis: AnalysisArtifact;
-  diagram: any;
-  podcast: string;
-  tasks: TaskSuggestion[];
   structureReport: string;
 };
 
 export async function analyzeRepository(
   input: { repoPath: string; sourceLabel: string },
   env: Env,
+  onProgress?: (pct: number, stage: string) => Promise<void>,
 ): Promise<AnalyzerResult> {
+  await onProgress?.(24, "Scanning repository files");
   const snapshot = await scanRepo(input.repoPath, {
     maxFiles: env.MAX_FILES,
     maxBytesPerFile: env.MAX_BYTES_PER_FILE,
   });
 
+  await onProgress?.(38, "Building module map");
   const graph = await buildModuleGraph(snapshot, {
     maxFilesToScan: env.MAX_IMPORT_SCAN_FILES,
     maxBytesPerFile: env.MAX_BYTES_PER_FILE,
   });
 
+  await onProgress?.(52, "Reading git ownership signals");
   const gitSignals = await getGitSignals(input.repoPath);
 
   const analysis: AnalysisArtifact = {
@@ -96,37 +93,56 @@ export async function analyzeRepository(
     ],
   };
 
-  const baseDiagram = generateExcalidraw(
-    {
-      modules: graph.modules.map((m) => ({ id: m.id, label: m.label })),
-      edges: graph.edges,
-    },
-    {
-      title: `Codebase map: ${snapshot.repoName}`,
-    },
-  );
-
-  const podcastFallback = generatePodcastFallback(analysis);
-  const tasksFallback = generateTasksFallback(analysis);
-  const structureReport = generateStructureReportMarkdown({
+  await onProgress?.(64, "Drafting detailed markdown report");
+  const localReport = generateStructureReportMarkdown({
     analysis,
     snapshot,
     graph,
     sourceLabel: input.sourceLabel,
   });
 
+  await onProgress?.(78, "Enriching report with Claude");
+  let structureReport = localReport;
   const llmClient = makeLlmClient(env);
-  const enriched = await enrichWithLlm(llmClient, analysis, {
-    baseDiagram,
-    podcastFallback,
-    tasksFallback,
-  });
+  try {
+    const context = JSON.stringify(analysis, null, 2);
+    const enriched = await llmClient.generateText({
+      system: [
+        "You are a principal engineer writing a handoff-quality repository architecture document.",
+        "Write clear, deeply technical markdown for onboarding engineers.",
+        "Do not use code fences unless needed; prefer structured sections and concise bullet lists.",
+        "State uncertainties explicitly.",
+      ].join("\n"),
+      maxTokens: 5000,
+      prompt: [
+        "Write a super-detailed markdown report about this repository's structure and technologies used.",
+        "Must include:",
+        "- architecture overview",
+        "- folder-by-folder breakdown",
+        "- inferred runtime/data flow",
+        "- tech stack and why each technology is likely used",
+        "- likely ownership/maintenance hotspots",
+        "- practical first reading order for a new engineer",
+        "- caveats and unknowns",
+        "",
+        "Use this deterministic baseline report as raw input; improve it significantly without inventing facts.",
+        "",
+        "BASELINE_REPORT:",
+        localReport,
+        "",
+        "STRUCTURED_CONTEXT_JSON:",
+        context,
+      ].join("\n"),
+    });
+    if (enriched?.trim()) {
+      structureReport = enriched.trim();
+    }
+  } catch {
+    structureReport = localReport;
+  }
 
+  await onProgress?.(92, "Finalizing markdown artifact");
   return {
-    analysis,
-    diagram: enriched.diagram,
-    podcast: enriched.podcast,
-    tasks: enriched.tasks,
     structureReport,
   };
 }

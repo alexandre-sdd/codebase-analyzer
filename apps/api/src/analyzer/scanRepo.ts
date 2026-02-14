@@ -44,6 +44,7 @@ const DEFAULT_IGNORED_DIRS = new Set([
   "target",
   ".idea",
   ".vscode",
+  ".jobs",
 ]);
 
 const EXT_TO_LANG: Record<string, string> = {
