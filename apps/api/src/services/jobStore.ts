@@ -4,6 +4,7 @@ import { nanoid } from "nanoid";
 import { ensureDir, pathExists } from "../lib/fsUtil";
 
 export type JobStatus = "queued" | "running" | "done" | "error";
+export type FlowStatus = "idle" | "running" | "done" | "error";
 export type JobSourceType = "local" | "github";
 
 export type Job = {
@@ -11,6 +12,9 @@ export type Job = {
   status: JobStatus;
   progressPct: number;
   progressStage: string;
+  flowStatus: FlowStatus;
+  flowProgressPct: number;
+  flowProgressStage: string;
   sourceType: JobSourceType;
   repoPath?: string;
   repoUrl?: string;
@@ -18,6 +22,7 @@ export type Job = {
   createdAt: string;
   updatedAt: string;
   error?: string;
+  flowError?: string;
 };
 
 export type CreateJobInput =
@@ -58,6 +63,9 @@ export async function createJob(jobsDir: string, input: CreateJobInput): Promise
     status: "queued",
     progressPct: 0,
     progressStage: "Queued",
+    flowStatus: "idle",
+    flowProgressPct: 0,
+    flowProgressStage: "Not started",
     createdAt: now,
     updatedAt: now,
   };
@@ -83,7 +91,7 @@ export async function getJob(jobsDir: string, jobId: string): Promise<Job | null
   const p = jobJsonPath(jobsDir, jobId);
   if (!(await pathExists(p))) return null;
   const raw = await fs.readFile(p, "utf8");
-  return JSON.parse(raw) as Job;
+  return normalizeJob(JSON.parse(raw) as Partial<Job>);
 }
 
 export async function updateJob(
@@ -94,7 +102,7 @@ export async function updateJob(
   const job = await getJob(jobsDir, jobId);
   if (!job) throw new Error("job not found");
   const next: Job = {
-    ...job,
+    ...normalizeJob(job),
     ...patch,
     updatedAt: new Date().toISOString(),
   };
@@ -145,4 +153,30 @@ export async function readArtifact(
   if (!(await pathExists(p))) return null;
   const content = await fs.readFile(p);
   return { contentType: entry.contentType, content };
+}
+
+export async function deleteArtifact(jobsDir: string, jobId: string, name: string): Promise<void> {
+  const dir = artifactsDir(jobsDir, jobId);
+  const p = path.join(dir, name);
+  try {
+    await fs.rm(p, { force: true });
+  } catch {
+    // ignore missing file
+  }
+
+  const metaPath = path.join(dir, "_meta.json");
+  if (!(await pathExists(metaPath))) return;
+  const meta = JSON.parse(await fs.readFile(metaPath, "utf8")) as Record<string, ArtifactMeta>;
+  if (!(name in meta)) return;
+  delete meta[name];
+  await fs.writeFile(metaPath, JSON.stringify(meta, null, 2), "utf8");
+}
+
+function normalizeJob(raw: Partial<Job>): Job {
+  return {
+    ...(raw as Job),
+    flowStatus: raw.flowStatus ?? "idle",
+    flowProgressPct: typeof raw.flowProgressPct === "number" ? raw.flowProgressPct : 0,
+    flowProgressStage: raw.flowProgressStage ?? "Not started",
+  };
 }

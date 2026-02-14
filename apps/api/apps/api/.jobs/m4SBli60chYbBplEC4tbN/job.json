@@ -1,0 +1,14 @@
+{
+  "jobId": "m4SBli60chYbBplEC4tbN",
+  "status": "done",
+  "progressPct": 100,
+  "progressStage": "Completed",
+  "flowStatus": "done",
+  "flowProgressPct": 100,
+  "flowProgressStage": "Flowchart completed",
+  "createdAt": "2026-02-14T22:19:05.684Z",
+  "updatedAt": "2026-02-14T22:19:21.118Z",
+  "sourceType": "github",
+  "repoUrl": "https://github.com/zulip/zulip",
+  "repoPath": "/Users/alexandresepulvedadedietrich/codebase-analyzer/apps/api/apps/api/.jobs/m4SBli60chYbBplEC4tbN/checkout"
+}

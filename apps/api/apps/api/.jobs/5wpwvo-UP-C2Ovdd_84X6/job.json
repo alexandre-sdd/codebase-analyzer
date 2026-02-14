@@ -1,0 +1,11 @@
+{
+  "jobId": "5wpwvo-UP-C2Ovdd_84X6",
+  "status": "done",
+  "progressPct": 100,
+  "progressStage": "Completed",
+  "createdAt": "2026-02-14T22:04:43.503Z",
+  "updatedAt": "2026-02-14T22:04:47.373Z",
+  "sourceType": "github",
+  "repoUrl": "https://github.com/Sripadkarne/Resume-Readiness-Intelligence-Engine",
+  "repoPath": "/Users/alexandresepulvedadedietrich/codebase-analyzer/apps/api/apps/api/.jobs/5wpwvo-UP-C2Ovdd_84X6/checkout"
+}

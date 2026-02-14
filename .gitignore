@@ -14,7 +14,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# lib/
 lib64/
 # Exception: allow TypeScript lib directories in apps
 !apps/**/lib/

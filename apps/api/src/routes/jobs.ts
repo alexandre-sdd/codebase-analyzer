@@ -4,9 +4,10 @@ import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import type { Env } from "../lib/env";
 import { ensureDir, isSubpath, pathExists } from "../lib/fsUtil";
-import { createJob, getJob, listArtifacts, readArtifact } from "../services/jobStore";
+import { createJob, deleteArtifact, getJob, listArtifacts, readArtifact, updateJob, writeArtifact } from "../services/jobStore";
 import { runJob } from "../services/jobRunner";
 import { parseGitHubRepoUrl } from "../services/repoSource";
+import { generateFlowchartFromMarkdown } from "../services/markdownFlowchart";
 
 const CreateJobBody = z
   .object({
@@ -69,6 +70,135 @@ export function registerJobRoutes(app: Express, env: Env) {
       const artifacts = await listArtifacts(env.JOBS_DIR, jobId);
       res.json({ ...job, artifacts });
     } catch (err) {
+      if (err instanceof z.ZodError) {
+        res.status(400).json({
+          error: {
+            message: "Invalid jobId",
+            details: err.flatten(),
+          },
+        });
+      } else {
+        throw err;
+      }
+    }
+  });
+
+  app.post("/v1/jobs/:jobId/flowchart", async (req: Request, res: Response) => {
+    try {
+      const jobId = z
+        .string()
+        .regex(/^[a-zA-Z0-9_-]{8,64}$/)
+        .parse(req.params.jobId);
+      const existing = await getJob(env.JOBS_DIR, jobId);
+      if (!existing) {
+        return res.status(404).json({ error: { message: "job not found" } });
+      }
+
+      await updateJob(env.JOBS_DIR, jobId, {
+        flowStatus: "running",
+        flowProgressPct: 4,
+        flowProgressStage: "Starting flowchart generation",
+        flowError: undefined,
+      });
+
+      const reportArtifact = await readArtifact(env.JOBS_DIR, jobId, "structure-report.md");
+      if (!reportArtifact) {
+        await updateJob(env.JOBS_DIR, jobId, {
+          flowStatus: "error",
+          flowProgressStage: "Failed",
+          flowError: "structure-report.md not found for this job. Run the repository analysis first.",
+        });
+        return res.status(409).json({
+          error: {
+            message: "structure-report.md not found for this job. Run the repository analysis first.",
+          },
+        });
+      }
+
+      const markdown = reportArtifact.content.toString("utf8");
+      const generated = await generateFlowchartFromMarkdown(markdown, env, async (pct, stage) => {
+        await updateJob(env.JOBS_DIR, jobId, {
+          flowStatus: "running",
+          flowProgressPct: pct,
+          flowProgressStage: stage,
+        });
+      });
+
+      const flowMarkdown = [
+        "# High-Level Codebase Flow",
+        "",
+        generated.highLevelDescription.trim(),
+        "",
+        "## Mermaid Flowchart",
+        "",
+        "```mermaid",
+        generated.mermaidFlowchart.trim(),
+        "```",
+        "",
+      ].join("\n");
+
+      await writeArtifact(
+        env.JOBS_DIR,
+        jobId,
+        "high-level-description.md",
+        "text/markdown; charset=utf-8",
+        generated.highLevelDescription,
+      );
+      await writeArtifact(
+        env.JOBS_DIR,
+        jobId,
+        "high-level-flow.mmd",
+        "text/plain; charset=utf-8",
+        generated.mermaidFlowchart,
+      );
+      await writeArtifact(
+        env.JOBS_DIR,
+        jobId,
+        "high-level-flow.md",
+        "text/markdown; charset=utf-8",
+        flowMarkdown,
+      );
+
+      const keepArtifacts = new Set([
+        "structure-report.md",
+        "high-level-description.md",
+        "high-level-flow.mmd",
+        "high-level-flow.md",
+      ]);
+      const existingArtifacts = await listArtifacts(env.JOBS_DIR, jobId);
+      for (const artifact of existingArtifacts) {
+        if (!keepArtifacts.has(artifact.name)) {
+          await deleteArtifact(env.JOBS_DIR, jobId, artifact.name);
+        }
+      }
+
+      await updateJob(env.JOBS_DIR, jobId, {
+        flowStatus: "done",
+        flowProgressPct: 100,
+        flowProgressStage: "Flowchart completed",
+      });
+
+      const artifacts = await listArtifacts(env.JOBS_DIR, jobId);
+      return res.status(201).json({
+        jobId,
+        artifacts,
+        highLevelDescription: generated.highLevelDescription,
+        mermaidFlowchart: generated.mermaidFlowchart,
+      });
+    } catch (err) {
+      const jobId = req.params.jobId;
+      const message = err instanceof Error ? err.message : String(err);
+      if (jobId && /^[a-zA-Z0-9_-]{8,64}$/.test(jobId)) {
+        try {
+          await updateJob(env.JOBS_DIR, jobId, {
+            flowStatus: "error",
+            flowProgressStage: "Failed",
+            flowError: message,
+          });
+        } catch {
+          // best effort; do not mask original error
+        }
+      }
       if (err instanceof z.ZodError) {
         res.status(400).json({
           error: {

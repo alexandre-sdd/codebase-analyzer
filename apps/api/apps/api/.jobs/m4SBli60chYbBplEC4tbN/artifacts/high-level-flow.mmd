@@ -1,0 +1,17 @@
+flowchart TD
+  repository_structure_report_checkout["Repository Structure Report: checkout\n[TypeScript, JavaScript, Python, PostgreSQL]"]
+  source["Source\n[TypeScript, JavaScript, Python, PostgreSQL]"]
+  executive_summary["Executive Summary"]
+  language_breakdown["Language Breakdown"]
+  top_level_directory_analysis["Top-Level Directory Analysis"]
+  static["`static`"]
+  zerver["`zerver`"]
+  locale["`locale`"]
+  repository_structure_report_checkout -->|feeds| source
+  source -->|feeds| executive_summary
+  executive_summary -->|feeds| language_breakdown
+  language_breakdown -->|feeds| top_level_directory_analysis
+  top_level_directory_analysis -->|feeds| static
+  static -->|feeds| zerver
+  zerver -->|feeds| locale
+  source -->|depends on| locale

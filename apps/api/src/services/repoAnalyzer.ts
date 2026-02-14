@@ -53,6 +53,10 @@ export async function analyzeRepository(
   env: Env,
   onProgress?: (pct: number, stage: string) => Promise<void>,
 ): Promise<AnalyzerResult> {
+  const maxFiles = env.MAX_FILES ?? 20_000;
+  const maxImportScanFiles = env.MAX_IMPORT_SCAN_FILES ?? 800;
+  const maxBytesPerFile = env.MAX_BYTES_PER_FILE ?? 200_000;
+
   let lastScannedPath = "";
   let lastImportPath = "";
   let lastPct = 0;
@@ -75,8 +79,8 @@ export async function analyzeRepository(
 
   await emitProgress(24, "Scanning repository files", true);
   const snapshot = await scanRepo(input.repoPath, {
-    maxFiles: env.MAX_FILES,
-    maxBytesPerFile: env.MAX_BYTES_PER_FILE,
+    maxFiles,
+    maxBytesPerFile,
     onProgress: async (info) => {
       lastScannedPath = info.currentPath;
       const pct = 24 + Math.min(14, Math.floor(info.filesScanned / 60));
@@ -87,8 +91,8 @@ export async function analyzeRepository(
   const scannedSuffix = lastScannedPath ? ` (last: ${shortenPath(lastScannedPath)})` : "";
   await emitProgress(40, `Scanned ${snapshot.totalFiles.toLocaleString()} files${scannedSuffix}`, true);
   const graph = await buildModuleGraph(snapshot, {
-    maxFilesToScan: env.MAX_IMPORT_SCAN_FILES,
-    maxBytesPerFile: env.MAX_BYTES_PER_FILE,
+    maxFilesToScan: maxImportScanFiles,
+    maxBytesPerFile,
     onProgress: async (info) => {
       lastImportPath = info.currentPath;
       const ratio = info.total > 0 ? info.scanned / info.total : 1;

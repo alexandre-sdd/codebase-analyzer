@@ -9,6 +9,10 @@ export async function runJob(jobId: string, env: Env): Promise<void> {
     error: undefined,
     progressPct: 2,
     progressStage: "Starting job",
+    flowStatus: "idle",
+    flowProgressPct: 0,
+    flowProgressStage: "Not started",
+    flowError: undefined,
   });
 
   try {

@@ -1,0 +1,14 @@
+{
+  "jobId": "Rj6dN-KAqV_QmqP6JmRyS",
+  "status": "done",
+  "progressPct": 100,
+  "progressStage": "Completed",
+  "flowStatus": "done",
+  "flowProgressPct": 100,
+  "flowProgressStage": "Flowchart completed",
+  "createdAt": "2026-02-14T22:15:16.175Z",
+  "updatedAt": "2026-02-14T22:15:23.518Z",
+  "sourceType": "github",
+  "repoUrl": "https://github.com/Sripadkarne/Resume-Readiness-Intelligence-Engine",
+  "repoPath": "/Users/alexandresepulvedadedietrich/codebase-analyzer/apps/api/apps/api/.jobs/Rj6dN-KAqV_QmqP6JmRyS/checkout"
+}

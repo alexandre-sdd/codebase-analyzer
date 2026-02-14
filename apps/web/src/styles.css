@@ -696,3 +696,155 @@ pre {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Results Rendering Enhancements */
+.results-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.results-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.results-tab {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.results-tab:hover:not(:disabled) {
+  border-color: rgba(120, 240, 181, 0.6);
+  color: white;
+}
+
+.results-tab.active {
+  border-color: rgba(120, 240, 181, 0.8);
+  background: linear-gradient(135deg, #78f0b5 0%, #8ab7ff 100%);
+  color: #0a1929;
+}
+
+.results-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.generate-flow-button {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(138, 183, 255, 0.5);
+  background: rgba(138, 183, 255, 0.16);
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.generate-flow-button:hover:not(:disabled) {
+  background: rgba(138, 183, 255, 0.25);
+}
+
+.generate-flow-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.markdown-rendered {
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 24px;
+  max-height: 76vh;
+  overflow: auto;
+  line-height: 1.6;
+}
+
+.markdown-rendered :is(h1, h2, h3, h4) {
+  margin: 1.2em 0 0.6em;
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.markdown-rendered p {
+  margin: 0.65em 0;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.markdown-rendered ul,
+.markdown-rendered ol {
+  margin: 0.6em 0;
+  padding-left: 1.25em;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.flowchart-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.flow-progress {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.flow-progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+}
+
+.flowchart-empty {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.flowchart-render {
+  display: grid;
+  gap: 10px;
+}
+
+.mermaid-wrap {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 10px;
+  overflow: auto;
+}
+
+.mermaid-host {
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+}
+
+.mermaid-host svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid-error {
+  color: #ff6b6b;
+  font-size: 12px;
+  margin-bottom: 8px;
+}

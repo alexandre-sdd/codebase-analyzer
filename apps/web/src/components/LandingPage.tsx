@@ -42,6 +42,18 @@ type JobResponse = {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8787";
 
+async function readErrorMessage(res: Response): Promise<string> {
+  const fallback = `HTTP ${res.status}`;
+  const raw = await res.text();
+  if (!raw) return fallback;
+  try {
+    const parsed = JSON.parse(raw) as { error?: { message?: string }; message?: string };
+    return parsed.error?.message || parsed.message || raw;
+  } catch {
+    return raw;
+  }
+}
+
 async function createJob(input: { repoPath?: string; repoUrl?: string; repoRef?: string }): Promise<CreateJobResponse> {
   try {
     const res = await fetch(`${API_BASE}/v1/jobs`, {
@@ -52,17 +64,7 @@ async function createJob(input: { repoPath?: string; repoUrl?: string; repoRef?:
       body: JSON.stringify(input),
     });
     
-    if (!res.ok) {
-      let errorMessage = `HTTP ${res.status}`;
-      try {
-        const errorData = await res.json();
-        errorMessage = errorData?.error?.message || errorMessage;
-      } catch {
-        const text = await res.text();
-        errorMessage = text || errorMessage;
-      }
-      throw new Error(errorMessage);
-    }
+    if (!res.ok) throw new Error(await readErrorMessage(res));
     
     return (await res.json()) as CreateJobResponse;
   } catch (error) {
@@ -76,17 +78,7 @@ async function createJob(input: { repoPath?: string; repoUrl?: string; repoRef?:
 
 async function getJob(jobId: string): Promise<JobResponse> {
   const res = await fetch(`${API_BASE}/v1/jobs/${encodeURIComponent(jobId)}`);
-  if (!res.ok) {
-    let errorMessage = `HTTP ${res.status}`;
-    try {
-      const errorData = await res.json();
-      errorMessage = errorData?.error?.message || errorMessage;
-    } catch {
-      const text = await res.text();
-      errorMessage = text || errorMessage;
-    }
-    throw new Error(errorMessage);
-  }
+  if (!res.ok) throw new Error(await readErrorMessage(res));
   return (await res.json()) as JobResponse;
 }
 
