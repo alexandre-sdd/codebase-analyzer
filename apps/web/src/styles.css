@@ -95,6 +95,14 @@ a {
   gap: 10px;
 }
 
+.section-title {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.8);
+}
+
 label {
   display: grid;
   gap: 6px;
@@ -234,4 +242,95 @@ pre {
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
   box-shadow: 0 0 24px rgba(120, 240, 181, 0.35);
   transition: width 300ms ease;
+}
+
+.progress-block {
+  display: grid;
+  gap: 6px;
+}
+
+.progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.progress-stage {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tab-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.tab-btn.active {
+  border-color: rgba(120, 240, 181, 0.6);
+  background: linear-gradient(180deg, rgba(120, 240, 181, 0.24), rgba(120, 240, 181, 0.08));
+}
+
+.markdown-view {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 14px;
+  line-height: 1.55;
+}
+
+.markdown-view :is(h1, h2, h3, h4) {
+  margin: 1.1em 0 0.55em;
+}
+
+.markdown-view :is(h1, h2) {
+  letter-spacing: -0.01em;
+}
+
+.markdown-view p {
+  margin: 0.6em 0;
+}
+
+.markdown-view ul,
+.markdown-view ol {
+  margin: 0.5em 0;
+  padding-left: 1.2em;
+}
+
+.markdown-view code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 0.92em;
+}
+
+.mermaid-wrap {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 10px;
+  overflow: auto;
+}
+
+.mermaid-host {
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+}
+
+.mermaid-host svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid-error {
+  color: var(--danger);
+  font-size: 12px;
+  margin-bottom: 8px;
 }
