@@ -1,0 +1,15 @@
+{
+  "name": "codebase-analyzer",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm -w @cba/api run dev",
+    "dev:web": "npm -w @cba/web run dev",
+    "build": "npm -w @cba/api run build && npm -w @cba/web run build",
+    "start:api": "npm -w @cba/api run start",
+    "start:web": "npm -w @cba/web run preview"
+  }
+}
+
