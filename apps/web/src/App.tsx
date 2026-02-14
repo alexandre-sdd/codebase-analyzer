@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { PodcastPlayer } from "./components/PodcastPlayer";
 
 type JobStatus = "queued" | "running" | "done" | "error";
 
@@ -66,6 +67,15 @@ async function fetchArtifactText(jobId: string, name: string): Promise<string> {
   return await res.text();
 }
 
+async function fetchArtifactBlobUrl(jobId: string, name: string): Promise<string> {
+  const res = await fetch(
+    `${API_BASE}/v1/jobs/${encodeURIComponent(jobId)}/artifacts/${encodeURIComponent(name)}`,
+  );
+  if (!res.ok) throw new Error(await res.text());
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
 export default function App() {
   const [repoPath, setRepoPath] = useState("");
   const [repoUrl, setRepoUrl] = useState("");
@@ -74,6 +84,18 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [structureReport, setStructureReport] = useState<string | null>(null);
+  const [podcastUrl, setPodcastUrl] = useState<string | null>(null);
+
+  // Fetch podcast audio when job is done and podcast artifact exists
+  useEffect(() => {
+    if (job?.status === "done" && job.artifacts?.some((a) => a.name === "podcast.mp3")) {
+      fetchArtifactBlobUrl(job.jobId, "podcast.mp3")
+        .then(setPodcastUrl)
+        .catch(console.error);
+    } else {
+      setPodcastUrl(null);
+    }
+  }, [job]);
 
   const progressPct = useMemo(() => {
     const n = Number(job?.progressPct ?? 0);
@@ -283,6 +305,16 @@ export default function App() {
           )}
         </div>
       </div>
+
+      {podcastUrl && job ? (
+        <>
+          <div style={{ height: 14 }} />
+          <div className="card">
+            <h2>Podcast Overview</h2>
+            <PodcastPlayer audioUrl={podcastUrl} jobId={job.jobId} />
+          </div>
+        </>
+      ) : null}
 
       {structureReport ? (
         <>
