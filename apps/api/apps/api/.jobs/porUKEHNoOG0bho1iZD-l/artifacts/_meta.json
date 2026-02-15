@@ -1,0 +1,18 @@
+{
+  "structure-report.md": {
+    "name": "structure-report.md",
+    "contentType": "text/markdown; charset=utf-8"
+  },
+  "high-level-description.md": {
+    "name": "high-level-description.md",
+    "contentType": "text/markdown; charset=utf-8"
+  },
+  "high-level-flow.mmd": {
+    "name": "high-level-flow.mmd",
+    "contentType": "text/plain; charset=utf-8"
+  },
+  "high-level-flow.md": {
+    "name": "high-level-flow.md",
+    "contentType": "text/markdown; charset=utf-8"
+  }
+}

@@ -40,12 +40,15 @@ type JobResponse = {
   }[];
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8787";
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE || "").trim() || "http://localhost:8787";
 
 async function readErrorMessage(res: Response): Promise<string> {
   const fallback = `HTTP ${res.status}`;
   const raw = await res.text();
   if (!raw) return fallback;
+  if (/^\s*<!doctype html>/i.test(raw) || /^\s*<html/i.test(raw)) {
+    return `Received HTML instead of API JSON from ${res.url}. Check NEXT_PUBLIC_API_BASE (expected http://localhost:8787 in local dev).`;
+  }
   try {
     const parsed = JSON.parse(raw) as { error?: { message?: string }; message?: string };
     return parsed.error?.message || parsed.message || raw;

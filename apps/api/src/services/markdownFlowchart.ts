@@ -101,8 +101,9 @@ export async function generateFlowchartFromMarkdown(
         system: [
           "You produce architecture graph JSON for onboarding.",
           "Return valid JSON only and stay grounded in provided inputs.",
+          "Do not output markdown fences or explanatory text.",
         ].join("\n"),
-        maxTokens: 1500,
+        maxTokens: 2600,
         prompt: [
           "Generate a directional high-level flow graph for the codebase.",
           "Return JSON with this exact schema:",
@@ -178,8 +179,13 @@ function fallbackHighLevelDescription(markdown: string): string {
 
 function fallbackFlowSpec(markdown: string): NormalizedFlowSpec {
   const headings = extractHeadings(markdown).slice(0, 8);
+  const pathSignals = extractPathSignals(markdown).slice(0, 10);
   const technologies = inferTechnologies(markdown).slice(0, 8);
-  const labels = headings.length > 0 ? headings : defaultFlowLabels();
+  const labels = dedupeStrings([
+    ...pathSignals,
+    ...headings,
+    ...defaultFlowLabels(),
+  ]).slice(0, 10);
   const nodes = labels.map((label, idx) => ({
     id: toFlowId(label, `n${idx + 1}`),
     label: clampText(label, 72),
@@ -314,6 +320,25 @@ function extractHeadings(markdown: string): string[] {
   return out;
 }
 
+function extractPathSignals(markdown: string): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const re = /`([^`\n]{2,120})`/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(markdown)) !== null) {
+    const raw = match[1].trim();
+    if (!raw) continue;
+    if (!/[/.]/.test(raw)) continue;
+    const label = normalizePathLabel(raw);
+    if (!label) continue;
+    const key = label.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(label);
+  }
+  return out;
+}
+
 function inferTechnologies(text: string): string[] {
   const lc = text.toLowerCase();
   const checks: [string, string[]][] = [
@@ -348,6 +373,23 @@ function defaultFlowLabels(): string[] {
     "External Integrations",
     "Operations And Tooling",
   ];
+}
+
+function normalizePathLabel(raw: string): string {
+  const cleaned = raw
+    .replace(/^\/+|\/+$/g, "")
+    .replace(/\.[a-z0-9]+$/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return "";
+  return cleaned
+    .split("/")
+    .slice(-2)
+    .join(" / ")
+    .split(" ")
+    .map((s) => (s ? s[0].toUpperCase() + s.slice(1) : s))
+    .join(" ");
 }
 
 function trimForPrompt(text: string, maxChars: number): string {

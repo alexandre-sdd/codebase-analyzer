@@ -148,26 +148,52 @@ export async function analyzeRepository(
   const llmClient = makeLlmClient(env);
   try {
     const context = JSON.stringify(analysis, null, 2);
+    const topLanguages = analysis.stats.languages.slice(0, 8).map((l) => `${l.name} (${l.files} files, ${l.bytes} bytes)`);
+    const topModules = analysis.graph.modules.slice(0, 24).map((m) => m.label);
+    const topEdges = analysis.graph.edges.slice(0, 24).map((e) => `${e.from} -> ${e.to} (${e.weight})`);
+    const topManifests = analysis.stats.manifests.slice(0, 20);
+    const topLevelDirs = analysis.stats.topLevelDirs.slice(0, 20);
     const enriched = await llmClient.generateText({
       system: [
         "You are a principal engineer writing a handoff-quality repository architecture document.",
         "Write clear, deeply technical markdown for onboarding engineers.",
         "Do not use code fences unless needed; prefer structured sections and concise bullet lists.",
         "State uncertainties explicitly.",
+        "Ground every claim in the provided context. Do not invent implementation details.",
       ].join("\n"),
-      maxTokens: 5000,
+      maxTokens: 6500,
       prompt: [
-        "Write a super-detailed markdown report about this repository's structure and technologies used.",
-        "Must include:",
-        "- architecture overview",
-        "- folder-by-folder breakdown",
-        "- inferred runtime/data flow",
-        "- tech stack and why each technology is likely used",
-        "- likely ownership/maintenance hotspots",
-        "- practical first reading order for a new engineer",
-        "- caveats and unknowns",
+        "Write a highly detailed technical onboarding report for this repository.",
+        "The result should be concrete and practical for a new engineer joining the team.",
+        "",
+        "Output markdown with these exact sections:",
+        "## Executive Summary",
+        "## System Architecture",
+        "## Runtime Flow",
+        "## Repository Map",
+        "## Component Deep Dive",
+        "## Technology Stack And Rationale",
+        "## Ownership And Change Hotspots",
+        "## Recommended Onboarding Path",
+        "## Risks And Unknowns",
+        "",
+        "Requirements:",
+        "- 1,000 to 2,200 words",
+        "- Explain how major parts interact, not just what folders exist",
+        "- In 'Repository Map', include concrete paths and what each path owns",
+        "- In 'Runtime Flow', describe request/data flow in ordered steps",
+        "- In 'Technology Stack And Rationale', explain why each key technology is likely used",
+        "- In 'Ownership And Change Hotspots', infer risk areas from repo structure and git signals",
+        "- If uncertain, explicitly mark the uncertainty and why",
         "",
         "Use this deterministic baseline report as raw input; improve it significantly without inventing facts.",
+        "",
+        "SIGNALS:",
+        `- Top-level dirs: ${topLevelDirs.join(", ") || "(none)"}`,
+        `- Manifests: ${topManifests.join(", ") || "(none)"}`,
+        `- Top languages: ${topLanguages.join("; ") || "(none)"}`,
+        `- Top modules: ${topModules.join(", ") || "(none)"}`,
+        `- Strongest dependencies: ${topEdges.join("; ") || "(none)"}`,
         "",
         "BASELINE_REPORT:",
         localReport,
@@ -179,8 +205,15 @@ export async function analyzeRepository(
     if (enriched?.trim()) {
       structureReport = enriched.trim();
     }
-  } catch {
-    structureReport = localReport;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    structureReport = [
+      localReport,
+      "",
+      "## Enrichment Status",
+      `- Claude enrichment unavailable: ${message}`,
+      "- Generated from deterministic static analysis only.",
+    ].join("\n");
   }
 
   await emitProgress(92, "Finalizing markdown artifact", true);

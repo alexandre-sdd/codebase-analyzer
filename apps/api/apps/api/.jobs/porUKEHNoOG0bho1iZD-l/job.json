@@ -1,0 +1,14 @@
+{
+  "jobId": "porUKEHNoOG0bho1iZD-l",
+  "status": "done",
+  "progressPct": 100,
+  "progressStage": "Completed",
+  "flowStatus": "done",
+  "flowProgressPct": 100,
+  "flowProgressStage": "Flowchart completed",
+  "createdAt": "2026-02-14T22:26:33.801Z",
+  "updatedAt": "2026-02-14T22:26:46.815Z",
+  "sourceType": "github",
+  "repoUrl": "https://github.com/zulip/zulip",
+  "repoPath": "/Users/alexandresepulvedadedietrich/codebase-analyzer/apps/api/apps/api/.jobs/porUKEHNoOG0bho1iZD-l/checkout"
+}

@@ -21,7 +21,12 @@ export function loadEnv(raw: Record<string, string | undefined>): Env {
   const host = raw.HOST ?? "0.0.0.0";
   const port = parseInt(raw.PORT ?? "8787", 10);
   const logLevel = raw.LOG_LEVEL ?? "info";
-  const jobsDir = raw.JOBS_DIR ?? path.join(process.cwd(), "apps", "api", ".jobs");
+  const cwd = process.cwd();
+  const normalizedCwd = cwd.replace(/\\/g, "/");
+  const defaultJobsDir = normalizedCwd.endsWith("/apps/api")
+    ? path.join(cwd, ".jobs")
+    : path.join(cwd, "apps", "api", ".jobs");
+  const jobsDir = raw.JOBS_DIR ?? defaultJobsDir;
   const corsOrigins = raw.CORS_ORIGINS
     ? raw.CORS_ORIGINS.split(",").map((s) => s.trim())
     : ["http://localhost:3000", "http://localhost:5173"];

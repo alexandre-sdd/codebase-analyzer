@@ -1,0 +1,13 @@
+{
+  "jobId": "55gIHTsmrVVtuwDhhaWsr",
+  "status": "running",
+  "progressPct": 78,
+  "progressStage": "Claude analyzing folders: apps, docs",
+  "flowStatus": "idle",
+  "flowProgressPct": 0,
+  "flowProgressStage": "Not started",
+  "createdAt": "2026-02-14T22:41:13.464Z",
+  "updatedAt": "2026-02-14T22:41:13.546Z",
+  "sourceType": "local",
+  "repoPath": "/Users/alexandresepulvedadedietrich/codebase-analyzer"
+}
